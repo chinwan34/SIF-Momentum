@@ -1,6 +1,5 @@
 import warnings
 warnings.filterwarnings("ignore")
-
 import pandas as pd
 import numpy as np
 import time
@@ -51,6 +50,8 @@ def ml_main(args):
   
     sector_data=pd.read_excel(inputfile_sector)
     unique_datetime = sorted(sector_data.date.unique())
+    
+    unique_datetime = ['2021-12-01', '2022-03-01','2022-06-01', '2022-09-01']
 
 
     #get sector unique ticker
@@ -77,29 +78,25 @@ def ml_main(args):
     no_feature_column_names = args.no_feature_column_names
     features_column = [x for x in sector_data.columns.values if (x not in no_feature_column_names) and (np.issubdtype(sector_data[x].dtype, np.number) and(not np.any(np.isnan(sector_data[x]))) and x != 'Unnamed: 0')]
     # print(testing_windows, trade_date, label_column, date_column, tic_column)
-    print(features_column)
     
     #sector name
     sector_name = args.sector_name_input
     
-    try:
-        start = time.time()
-        model_result=ml_model.run_4model(sector_data,
-                                            features_column, 
-                                            label_column, 
-                                            date_column,
-                                            tic_column,
-                                            unique_ticker, 
-                                            unique_datetime, 
-                                            trade_date,
-                                            first_trade_date_index,
-                                            testing_windows)
-        end = time.time()
-        print('Time Spent: ',(end-start)/60,' minutes')
-        ml_model.save_model_result(model_result,sector_name)
-
-    except Exception:
-        print(Exception)
+    
+    start = time.time()
+    model_result=ml_model.run_4model(sector_data,
+                                        features_column, 
+                                        label_column, 
+                                        date_column,
+                                        tic_column,
+                                        unique_ticker, 
+                                        unique_datetime, 
+                                        trade_date,
+                                        first_trade_date_index,
+                                        testing_windows)
+    end = time.time()
+    print('Time Spent: ',(end-start)/60,' minutes')
+    ml_model.save_model_result(model_result,sector_name)
 
 def drl_main(args):
     pass
@@ -112,8 +109,4 @@ if __name__ == '__main__':
     else:
         pass
 
-
-
-    
-
-# python3 fundamental_run_model.py -sector_name sector10 -fundamental Data/fundamental_final_table.xlsx -sector Data/1-focasting_data/sector10_clean.xlsx 
+# python3 fundamental_run_model.py -sector_name sector10 -sector ../datasets/sector10.xlsx 

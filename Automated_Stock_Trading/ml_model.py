@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import traceback
+import warnings
+warnings.filterwarnings("ignore")
 
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
@@ -38,6 +40,7 @@ def prepare_rolling_train(df,features_column,label_column,date_column,unique_dat
         
     X_train=train[features_column]
     y_train=train[label_column]
+    print(X_train.shape, y_train.shape, testing_windows, first_trade_date_index, unique_datetime, current_index)
     return X_train,y_train
 
 def prepare_rolling_test(df,features_column,label_column,date_column,unique_datetime,testing_windows,fist_trade_date_index, current_index):
@@ -185,7 +188,7 @@ def train_lightgbm(X_train, y_train):
     for key, val in param_grid_gbm.items():
         n_models *= len(val)
     n_jobs_per_model = min(max(1, n_cpus//n_models), n_cpus)
-    lightgbm = LGBMRegressor(random_state = 42, n_jobs=n_jobs_per_model)
+    lightgbm = LGBMRegressor(random_state = 42, n_jobs=n_jobs_per_model, verbose=-1)
     # scoring_method = 'r2'
     # scoring_method = 'explained_variance'
     # scoring_method = 'neg_mean_absolute_error'
@@ -302,6 +305,9 @@ def run_4model(df,features_column, label_column,date_column,tic_column,
     df = df.rename(columns = lambda x:re.sub('[^A-Za-z0-9_]+', '', x))
     for i in range(first_trade_date_index, len(unique_datetime)):
         try:
+            if testing_windows >= i:
+                continue
+
             # prepare training data
             X_train, y_train = prepare_rolling_train(df, 
                                                      features_column,
@@ -369,6 +375,7 @@ def run_4model(df,features_column, label_column,date_column,tic_column,
 
 
             evaluation_record[unique_datetime[i]]=eval_table
+            print(evaluation_record, "Evaluation Record", i)
 
             # lowest error score model
             y_trade_best = eval_table.model_predict_return.values[eval_table.model_eval == eval_table.model_eval.min()][0]
@@ -408,6 +415,7 @@ def get_model_evaluation_table(evaluation_record,trade_date):
         except:
             print('error')
     df_evaluation = pd.DataFrame(evaluation_list,columns = ['rf', 'xgb', 'gbm'])
+    print(df_evaluation)
     df_evaluation.index = trade_date
     return df_evaluation
 
