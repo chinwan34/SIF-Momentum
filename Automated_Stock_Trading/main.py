@@ -8,19 +8,16 @@ import traceback
 import sys
 sys.path.append('code')
 import ml_model
+import argparse
 
-
-
-
-if __name__ == '__main__':
-    import argparse
+def parse_arguments():
     parser = argparse.ArgumentParser()
     
     #sector name
     parser.add_argument('-sector_name','--sector_name_input', type=str,  required=True,help='sector name: i.e. sector10')
 
     # file name
-    parser.add_argument('-fundamental','--fundamental_input', type=str,  required=True,help='inputfile name for fundamental table')
+    # parser.add_argument('-fundamental','--fundamental_input', type=str,  required=True,help='inputfile name for fundamental table')
     parser.add_argument('-sector','--sector_input', type=str,  required=True,help='inputfile name for individual sector')
     
     # rolling window variables
@@ -33,16 +30,22 @@ if __name__ == '__main__':
     parser.add_argument("-tic_column", default='tic', type=str)
     parser.add_argument("-no_feature_column_names", default = ['gvkey', 'tic', 'datadate', 'rdq', 'datadate', 'fyearq', 'fqtr',
        'conm', 'datacqtr', 'datafqtr', 'gsector','y_return'], type=list,help='column names that are not fundamental features')
-
     
+    # Others
+    parser.add_argument("--ml", action="store_true", default=False, help="Implementing Stock Selection Mechanism")
 
-    args = parser.parse_args()
-    #load fundamental table
-    inputfile_fundamental = args.fundamental_input
-    
-    fundamental_total=pd.read_csv(inputfile_fundamental)
-   # fundamental_total=fundamental_total[fundamental_total['tradedate'] < 20170901]
-    #get all unique quarterly date
+    return parser.parse_args()
+
+
+def ml_main(args):
+    inputfile_sector = args.sector_input
+     #load fundamental table
+    # inputfile_fundamental = args.fundamental_input
+    # fundamental_total=pd.read_csv(inputfile_fundamental)
+    # fundamental_total=fundamental_total[fundamental_total['tradedate'] < 20170901]
+    # get all unique quarterly date
+
+
     # load sector data
     inputfile_sector = args.sector_input
   
@@ -72,7 +75,9 @@ if __name__ == '__main__':
     
     # features column: different base on sectors
     no_feature_column_names = args.no_feature_column_names
-    features_column = [x for x in sector_data.columns.values if (x not in no_feature_column_names) and (np.issubdtype(sector_data[x].dtype, np.number) and(not np.any(np.isnan(sector_data[x]))))]
+    features_column = [x for x in sector_data.columns.values if (x not in no_feature_column_names) and (np.issubdtype(sector_data[x].dtype, np.number) and(not np.any(np.isnan(sector_data[x]))) and x != 'Unnamed: 0')]
+    # print(testing_windows, trade_date, label_column, date_column, tic_column)
+    print(features_column)
     
     #sector name
     sector_name = args.sector_name_input
@@ -93,8 +98,21 @@ if __name__ == '__main__':
         print('Time Spent: ',(end-start)/60,' minutes')
         ml_model.save_model_result(model_result,sector_name)
 
-    except e:
-        print(e)
+    except Exception:
+        print(Exception)
+
+def drl_main(args):
+    pass
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    if args.ml:
+        ml_main(args)
+    else:
+        pass
+
+
 
     
 

@@ -347,10 +347,8 @@ def run_4model(df,features_column, label_column,date_column,tic_column,
             t =time.perf_counter()
             rf_model = train_random_forest(X_train, y_train)
             print(f"rf:{time.perf_counter() - t}s")
-         #   ridge_model = train_ridge(X_train, y_train)
+            # ridge_model = train_ridge(X_train, y_train)
             
-
-
             # Validation
             rf_eval = evaluate_model(rf_model, X_test, y_test)
             xgb_eval = evaluate_model(xgb_model, X_test, y_test)
@@ -402,7 +400,6 @@ def run_4model(df,features_column, label_column,date_column,tic_column,
             evaluation_record,
             df_evaluation)
 
-
 def get_model_evaluation_table(evaluation_record,trade_date):
     evaluation_list = []
     for d in trade_date:
@@ -423,8 +420,6 @@ def save_model_result(sector_result,sector_name):
     df_best_model_name = sector_result[4]
     df_evaluation_score = sector_result[5]
     df_model_score = sector_result[6]
-    
-
 
     filename = 'results/'+sector_name+'/'
     if not os.path.exists(os.path.dirname(filename)):
@@ -433,7 +428,6 @@ def save_model_result(sector_result,sector_name):
         except OSError as exc: # Guard against race condition
             if exc.errno != errno.EEXIST:
                 raise
-    
     
     df_predict_rf.to_csv('results/'+sector_name+'/df_predict_rf.csv')
     df_predict_gbm.to_csv('results/'+sector_name+'/df_predict_gbm.csv')
@@ -615,10 +609,6 @@ def long_only_strategy_monthly(df_predict_return, tic_monthly_return, trade_mont
     df_portfolio_return = df_portfolio_return['monthly_return']
     return df_portfolio_return
 
-
-
-
-
 def plot_predict_return_distribution(df_predict_best,sector_name,out_path):
     import matplotlib.pyplot as plt
 
@@ -631,6 +621,21 @@ def plot_predict_return_distribution(df_predict_best,sector_name,out_path):
         plt.title(sector_name+": trade date - "+str(df_predict_best.index[i]),size=15)
     plt.savefig(out_path+str(df_predict_best.index[i])+".png")
 
+def stock_selection():
+    sectors = range(10, 65, 5)
+    df_dict = {'gvkey':[], 'predicted_return':[], 'trade_date':[]}
+    for sector in sectors:
+        df = pd.read_csv(f"results/sector{sector}/df_predict_best.csv", index_col=0)
+        for idx in df.index:
+            predicted_return = df.loc[idx]
+            top_q = predicted_return.quantile(0.75)
+            predicted_return = predicted_return[predicted_return >= top_q]
+            for gvkey in predicted_return.index:
+                df_dict["gvkey"].append(gvkey)
+                df_dict["predicted_return"].append(predicted_return[gvkey])
+                df_dict["trade_date"].append(idx)
+    df_result = pd.DataFrame(df_dict)
+    df_result.to_csv("results/stock_selected.csv")
 
 
 
