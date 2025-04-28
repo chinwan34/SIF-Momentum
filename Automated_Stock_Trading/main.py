@@ -7,6 +7,7 @@ import traceback
 import sys
 sys.path.append('code')
 import ml_model
+from fundamental_portfolio_drl import *
 import argparse
 
 def parse_arguments():
@@ -51,7 +52,7 @@ def ml_main(args):
     sector_data=pd.read_excel(inputfile_sector)
     unique_datetime = sorted(sector_data.date.unique())
     
-    unique_datetime = ['2021-12-01', '2022-03-01','2022-06-01', '2022-09-01']
+    unique_datetime = ['2017-12-01','2018-03-01','2018-06-01','2018-09-01','2018-12-01', '2019-03-01','2019-06-01', '2019-09-01']
 
 
     #get sector unique ticker
@@ -97,9 +98,12 @@ def ml_main(args):
     end = time.time()
     print('Time Spent: ',(end-start)/60,' minutes')
     ml_model.save_model_result(model_result,sector_name)
+    ml_model.stock_selection()
+
 
 def drl_main(args):
-    
+    portfolio = portfolio_drl()
+    portfolio.run()
 
 
 if __name__ == '__main__':
@@ -107,6 +111,6 @@ if __name__ == '__main__':
     if args.ml:
         ml_main(args)
     else:
-        pass
+        drl_main(args)
 
 # python3 fundamental_run_model.py -sector_name sector10 -sector ../datasets/sector10.xlsx 

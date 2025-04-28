@@ -25,6 +25,7 @@ class portfolio_drl:
         self.df = self.data_import()
         self.all_stocks_info = pd.read_csv("../datasets/final_ratios.csv")
         self.df_dict = {}
+        self.data_manipulation()
 
     def data_import(self):
         df_price = pd.read_csv("../datasets/sp500_price_data.csv")
@@ -36,21 +37,24 @@ class portfolio_drl:
         # df_price['low'] = df_price['prcld']
         # df_price['volume'] =df_price['cshtrd']
         # df = df_price[['date', 'open', 'close', 'high', 'low','adjcp','volume', 'gvkey']]
-        df = df_price[['date', 'open', 'close', 'high', 'low','adjcp','volume', 'tic']]
+        df = df_price[['datadate', 'open', 'high', 'low','adjcp','volume', 'tic']]
+        df = df.rename(columns={'open':'close'})
+        df.rename(columns={'datadate':'date'}, inplace=True)
         # df['tic'] = df_price['gvkey']
         return df
 
     def data_manipulation(self):
         self.df['date'] = pd.to_datetime(self.df['date'], format='%Y%m%d')
         self.df['day'] = [x.weekday() for x in self.df['date']]
-        self.df.drop_duplicates(['gvkey', 'date'], inplace=True)
+        # self.df.drop_duplicates(['gvkey', 'date'], inplace=True)
         selected_stock = pd.read_csv("results/stock_selected.csv")
-        self.trade_date=selected_stock.trade_date.unique()
+        self.trade_date = selected_stock.trade_date.unique()
         # with open('all_return_table.pickle', 'rb') as handle:
         #     all_return_table = pickle.load(handle)
 
         # with open('all_stocks_info.pickle', 'rb') as handle:
         #     all_stocks_info = pickle.load(handle)
+        # self.trade_date = [date.replace("-", "") for date in self.trade_date]
 
 
     def run(self):
@@ -59,7 +63,8 @@ class portfolio_drl:
         max_rolling_window = pd.Timedelta(np.timedelta64(10, 'Y'))
 
         for idx in range(1, len(self.trade_date)):
-            p1_alldata=self.all_stocks_info[self.trade_date[idx-1]]
+            # p1_alldata=self.all_stocks_info[self.trade_date[idx-1]]
+            p1_alldata = self.all_stocks_info[self.all_stocks_info["date"] == self.trade_date[idx-1]]
             p1_alldata=p1_alldata.sort_values('gvkey')
             p1_alldata = p1_alldata.reset_index()
             del p1_alldata['index']
@@ -85,6 +90,7 @@ class portfolio_drl:
             lookback=252
             for i in range(lookback,len(df_.index.unique())):
                 data_lookback = df_.loc[i-lookback:i,:]
+                # price_lookback=data_lookback.pivot_table(index = 'date',columns = 'tic', values = 'close')
                 price_lookback=data_lookback.pivot_table(index = 'date',columns = 'tic', values = 'close')
                 return_lookback = price_lookback.pct_change().dropna()
                 return_list.append(return_lookback)

@@ -633,15 +633,18 @@ def stock_selection():
     sectors = range(10, 65, 5)
     df_dict = {'gvkey':[], 'predicted_return':[], 'trade_date':[]}
     for sector in sectors:
-        df = pd.read_csv(f"results/sector{sector}/df_predict_best.csv", index_col=0)
-        for idx in df.index:
-            predicted_return = df.loc[idx]
-            top_q = predicted_return.quantile(0.75)
-            predicted_return = predicted_return[predicted_return >= top_q]
-            for gvkey in predicted_return.index:
-                df_dict["gvkey"].append(gvkey)
-                df_dict["predicted_return"].append(predicted_return[gvkey])
-                df_dict["trade_date"].append(idx)
+        try:
+            df = pd.read_csv(f"results/sector{sector}/df_predict_best.csv", index_col=0)
+            for idx in df.index:
+                predicted_return = df.loc[idx]
+                top_q = predicted_return.quantile(0.75)
+                predicted_return = predicted_return[predicted_return >= top_q]
+                for gvkey in predicted_return.index:
+                    df_dict["gvkey"].append(gvkey)
+                    df_dict["predicted_return"].append(predicted_return[gvkey])
+                    df_dict["trade_date"].append(idx)
+        except FileNotFoundError:
+            continue
     df_result = pd.DataFrame(df_dict)
     df_result.to_csv("results/stock_selected.csv")
 
