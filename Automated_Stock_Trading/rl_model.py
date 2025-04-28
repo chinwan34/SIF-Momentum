@@ -45,6 +45,18 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 
 def prepare_rolling_train(df,date_column,testing_window, max_rolling_window, trade_date):
+    """
+    Perform data spliting based on trade date input.
+    Args:
+        df: Dataframe for spliting
+        date_column: Will be omitted in further refactoring
+        testing_window: Length of data for testing
+        max_rolling_window: Rolling window approach size
+        trade_date: Dates for model trading
+    Return:
+        Data for training
+    
+    """
     print(trade_date-max_rolling_window, trade_date-testing_window)
     train = data_split(df, trade_date-max_rolling_window, trade_date-testing_window)
     #print(train)
