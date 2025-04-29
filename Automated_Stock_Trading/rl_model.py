@@ -235,6 +235,21 @@ def run_models(df,date_column, trade_date, env_kwargs,
         best_model = sac_model
     
     return a2c_model,ppo_model,ddpg_model,td3_model,sac_model,best_model
+
+def run_model_a2c(df, date_column, trade_date, env_kwargs, 
+                  testing_window=4,
+              max_rolling_window=44):
+    X_train = prepare_rolling_train(df, date_column, testing_window, max_rolling_window, trade_date)
+
+            # prepare testing data
+    X_test = prepare_rolling_test(df, date_column, testing_window, max_rolling_window, trade_date)
+    e_train_gym = StockPortfolioEnv(df = X_train, **env_kwargs)
+    env_train, _ = e_train_gym.get_sb_env()
+    agent = DRLAgent(env = env_train)
+
+    a2c_model = train_a2c(agent)
+    return a2c_model
+
 def get_model_evaluation_table(evaluation_record,trade_date):
     evaluation_list = []
     for d in trade_date:

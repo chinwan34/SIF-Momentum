@@ -14,12 +14,11 @@ from finrl import config_tickers
 from finrl.meta.data_processors.processor_yahoofinance import YahooFinanceProcessor
 from finrl.agents.stablebaselines3.models import DRLAgent
 from finrl.meta.env_portfolio_allocation.env_portfolio import StockPortfolioEnv
-# from finrl.meta.preprocessor.preprocessors import FeatureEngineer
-# from finrl.meta.preprocessor.preprocessors import data_split
-from preprocessors import FeatureEngineer, data_split
+from finrl.meta.preprocessor.preprocessors import FeatureEngineer
+from finrl.meta.preprocessor.preprocessors import data_split
 from finrl import config
 import pickle
-from rl_model import run_models
+from rl_model import run_models, run_model_a2c
 
 class portfolio_drl:
     def __init__(self):
@@ -64,6 +63,9 @@ class portfolio_drl:
         max_rolling_window = pd.Timedelta(np.timedelta64(10, 'Y'))
 
         for idx in range(1, len(self.trade_date)):
+            if idx > 1:
+                continue
+
             # p1_alldata=self.all_stocks_info[self.trade_date[idx-1]]
             p1_alldata = self.all_stocks_info[self.all_stocks_info["date"] == self.trade_date[idx-1]]
             p1_alldata=p1_alldata.sort_values('tic')
@@ -126,7 +128,8 @@ class portfolio_drl:
 
             print("Got to here 3")
 
-            a2c_model,ppo_model,ddpg_model,td3_model,sac_model,best_model = run_models(df_, "date", pd.to_datetime(self.trade_date[idx-1]), env_kwargs,testing_window, max_rolling_window)
+            # a2c_model,ppo_model,ddpg_model,td3_model,sac_model,best_model = run_models(df_, "date", pd.to_datetime(self.trade_date[idx-1]), env_kwargs,testing_window, max_rolling_window)
+            a2c_model = run_model_a2c(df_, "date", pd.to_datetime(self.trade_date[idx-1]), env_kwargs,testing_window, max_rolling_window)
             
             trade = data_split(df_, pd.to_datetime(self.trade_date[idx-1]), pd.to_datetime(self.trade_date[idx]))
             e_trade_gym = StockPortfolioEnv(df = trade, **env_kwargs)
