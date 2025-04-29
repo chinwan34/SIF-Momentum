@@ -14,8 +14,9 @@ from finrl import config_tickers
 from finrl.meta.data_processors.processor_yahoofinance import YahooFinanceProcessor
 from finrl.agents.stablebaselines3.models import DRLAgent
 from finrl.meta.env_portfolio_allocation.env_portfolio import StockPortfolioEnv
-from finrl.meta.preprocessor.preprocessors import FeatureEngineer
-from finrl.meta.preprocessor.preprocessors import data_split
+# from finrl.meta.preprocessor.preprocessors import FeatureEngineer
+# from finrl.meta.preprocessor.preprocessors import data_split
+from preprocessors import FeatureEngineer, data_split
 from finrl import config
 import pickle
 from rl_model import run_models
@@ -65,12 +66,15 @@ class portfolio_drl:
         for idx in range(1, len(self.trade_date)):
             # p1_alldata=self.all_stocks_info[self.trade_date[idx-1]]
             p1_alldata = self.all_stocks_info[self.all_stocks_info["date"] == self.trade_date[idx-1]]
-            p1_alldata=p1_alldata.sort_values('gvkey')
+            p1_alldata=p1_alldata.sort_values('tic')
+            # p1_alldata=p1_alldata.sort_values('gvkey')
             p1_alldata = p1_alldata.reset_index()
             del p1_alldata['index']
-            p1_stock = p1_alldata.gvkey
+            # p1_stock = p1_alldata.gvkey
+            p1_stock = p1_alldata.tic
 
             earliest_date = pd.to_datetime(self.trade_date[idx-1]) - max_rolling_window
+
             df_ = self.df[self.df['tic'].isin(p1_stock) & (self.df['date'] >= earliest_date) & (self.df['date'] < self.trade_date[idx])]
             print(df_)
             fe = FeatureEngineer(
@@ -86,6 +90,8 @@ class portfolio_drl:
             cov_list = []
             return_list = []
 
+            print("Got to here 1")
+
             # look back is one year
             lookback=252
             for i in range(lookback,len(df_.index.unique())):
@@ -98,7 +104,8 @@ class portfolio_drl:
                 covs = return_lookback.cov().values
                 cov_list.append(covs)
 
-        
+            print("Got to here 2")
+
             df_cov = pd.DataFrame({'date':df_.date.unique()[lookback:],'cov_list':cov_list,'return_list':return_list})
             df_ = df_.merge(df_cov, on='date')
             df_ = df_.sort_values(['date','tic']).reset_index(drop=True)
@@ -116,6 +123,8 @@ class portfolio_drl:
             "reward_scaling": 1e-4
             
             }
+
+            print("Got to here 3")
 
             a2c_model,ppo_model,ddpg_model,td3_model,sac_model,best_model = run_models(df_, "date", pd.to_datetime(self.trade_date[idx-1]), env_kwargs,testing_window, max_rolling_window)
             

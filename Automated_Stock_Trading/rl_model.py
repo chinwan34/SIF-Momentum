@@ -34,9 +34,10 @@ n_cpus = cpu_count() - 1
 
 import numpy as np
 import pandas as pd
-from gym.utils import seeding
-import gym
-from gym import spaces
+import gymnasium as gym
+# import gym
+# from gym.utils import seeding
+# from gym import spaces
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

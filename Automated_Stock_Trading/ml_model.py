@@ -19,8 +19,6 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import AdaBoostRegressor
 
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV,RandomizedSearchCV
-from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
 import time
 import os
 import errno
@@ -28,6 +26,8 @@ import errno
 from multiprocessing import cpu_count
 
 n_cpus = cpu_count() - 1
+from xgboost import XGBRegressor
+from lightgbm import LGBMRegressor
 
 
 def prepare_rolling_train(df,features_column,label_column,date_column,unique_datetime,testing_windows,first_trade_date_index, max_rolling_window_index,current_index):

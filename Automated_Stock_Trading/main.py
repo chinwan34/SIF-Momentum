@@ -6,9 +6,11 @@ import time
 import traceback
 import sys
 sys.path.append('code')
-import ml_model
 from fundamental_portfolio_drl import *
+import ml_model
 import argparse
+import faulthandler
+faulthandler.enable() # Add this at the very top
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -111,6 +113,23 @@ if __name__ == '__main__':
     if args.ml:
         ml_main(args)
     else:
+        # import gymnasium as gym
+        # from stable_baselines3 import A2C, PPO
+        # try:
+        #     print("Making env...")
+        #     env = gym.make("CartPole-v1")
+        #     print("Env created. Initializing model...")
+        #     model = PPO("MlpPolicy", env, verbose=1)
+        #     print("Model initialized. Starting learning...")
+        #     model.learn(total_timesteps=10000)
+        #     print("Learning finished.")
+        # except Exception as e:
+        #     print(f"An explicit Python error occurred: {e}")
+        # finally:
+        #     # Try to ensure exit happens even after segfault if possible
+        #     # though segfaults often terminate abruptly before finally blocks
+        #     print("Exiting script.")
+        #     exit() # Keep your original exit if needed
         drl_main(args)
 
 # python3 fundamental_run_model.py -sector_name sector10 -sector ../datasets/sector10.xlsx 
