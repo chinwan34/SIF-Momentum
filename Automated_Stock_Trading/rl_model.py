@@ -34,9 +34,10 @@ n_cpus = cpu_count() - 1
 
 import numpy as np
 import pandas as pd
-from gym.utils import seeding
-import gym
-from gym import spaces
+import gymnasium as gym
+# import gym
+# from gym.utils import seeding
+# from gym import spaces
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -45,6 +46,18 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 
 def prepare_rolling_train(df,date_column,testing_window, max_rolling_window, trade_date):
+    """
+    Perform data spliting based on trade date input.
+    Args:
+        df: Dataframe for spliting
+        date_column: Will be omitted in further refactoring
+        testing_window: Length of data for testing
+        max_rolling_window: Rolling window approach size
+        trade_date: Dates for model trading
+    Return:
+        Data for training
+    
+    """
     print(trade_date-max_rolling_window, trade_date-testing_window)
     train = data_split(df, trade_date-max_rolling_window, trade_date-testing_window)
     #print(train)
@@ -222,6 +235,21 @@ def run_models(df,date_column, trade_date, env_kwargs,
         best_model = sac_model
     
     return a2c_model,ppo_model,ddpg_model,td3_model,sac_model,best_model
+
+def run_model_a2c(df, date_column, trade_date, env_kwargs, 
+                  testing_window=4,
+              max_rolling_window=44):
+    X_train = prepare_rolling_train(df, date_column, testing_window, max_rolling_window, trade_date)
+
+            # prepare testing data
+    X_test = prepare_rolling_test(df, date_column, testing_window, max_rolling_window, trade_date)
+    e_train_gym = StockPortfolioEnv(df = X_train, **env_kwargs)
+    env_train, _ = e_train_gym.get_sb_env()
+    agent = DRLAgent(env = env_train)
+
+    a2c_model = train_a2c(agent)
+    return a2c_model
+
 def get_model_evaluation_table(evaluation_record,trade_date):
     evaluation_list = []
     for d in trade_date:
