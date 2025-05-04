@@ -154,7 +154,7 @@ def train_random_forest(X_train, y_train):
     '''
     return model
 
-
+# Trains a Support Vector Machine (SVM) classifier on the given training data
 def train_svm(X_train, y_train):
     svr = SVR(kernel = 'rbf')
 
@@ -177,7 +177,7 @@ def train_svm(X_train, y_train):
 
     return model
 
-
+# Trains a lightgbm classifier on the given training data
 def train_lightgbm(X_train, y_train):
 
     
@@ -207,7 +207,7 @@ def train_lightgbm(X_train, y_train):
     return model
 
 
-
+# Trains a XGBoost classifier on the given training data
 def train_xgb(X_train, y_train):
     xgb = XGBRegressor(random_state = 42, n_jobs=10)
 
