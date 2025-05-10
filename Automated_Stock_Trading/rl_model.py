@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import traceback
@@ -64,12 +63,38 @@ def prepare_rolling_train(df,date_column,testing_window, max_rolling_window, tra
     return train
 
 def prepare_rolling_test(df,date_column,testing_window, max_rolling_window, trade_date):
+    """
+    Prepare test data for model evaluation using a rolling window approach.
+    Args:
+        df: Input dataframe containing stock data
+        date_column: Column name containing dates
+        testing_window: Length of data to be used for testing
+        max_rolling_window: Size of the rolling window
+        trade_date: Current trading date
+    Returns:
+        DataFrame: Test data prepared for model evaluation
+    """
     test=data_split(df, trade_date-testing_window, trade_date)
         
     X_test=test.reset_index()
     return test
 
 def prepare_trade_data(df,features_column,label_column,date_column,tic_column,unique_datetime,testing_windows,fist_trade_date_index, current_index):
+    """
+    Prepare data for actual trading by extracting relevant features and labels for a specific date.
+    Args:
+        df: Input dataframe containing stock data
+        features_column: List of feature column names
+        label_column: Name of the target/label column
+        date_column: Name of the date column
+        tic_column: Name of the ticker column
+        unique_datetime: List of unique dates
+        testing_windows: Number of testing windows
+        fist_trade_date_index: Index of the first trade date
+        current_index: Current date index
+    Returns:
+        tuple: (X_trade, y_trade, trade_tic) containing features, labels, and tickers for trading
+    """
     trade  = df[df[date_column] == unique_datetime[current_index]]
     X_trade = trade[features_column]
     y_trade = trade[label_column]
@@ -78,7 +103,13 @@ def prepare_trade_data(df,features_column,label_column,date_column,tic_column,un
 
 
 def train_a2c(agent):
-
+    """
+    Train an Advantage Actor-Critic (A2C) model for stock trading.
+    Args:
+        agent: DRLAgent instance configured with the trading environment
+    Returns:
+        trained_a2c: Trained A2C model
+    """
     A2C_PARAMS = {"n_steps": 5, "ent_coef": 0.005, "learning_rate": 0.0002}
     model_a2c = agent.get_model(model_name="a2c",model_kwargs = A2C_PARAMS)
     trained_a2c = agent.train_model(model=model_a2c, 
@@ -88,6 +119,13 @@ def train_a2c(agent):
     return trained_a2c
 
 def train_ppo(agent):
+    """
+    Train a Proximal Policy Optimization (PPO) model for stock trading.
+    Args:
+        agent: DRLAgent instance configured with the trading environment
+    Returns:
+        trained_ppo: Trained PPO model
+    """
     PPO_PARAMS = {
     "n_steps": 2048,
     "ent_coef": 0.005,
@@ -102,6 +140,13 @@ def train_ppo(agent):
     return trained_ppo
 
 def train_ddpg(agent):
+    """
+    Train a Deep Deterministic Policy Gradient (DDPG) model for stock trading.
+    Args:
+        agent: DRLAgent instance configured with the trading environment
+    Returns:
+        trained_ddpg: Trained DDPG model
+    """
     DDPG_PARAMS = {"batch_size": 128, "buffer_size": 50000, "learning_rate": 0.001}
     model_ddpg = agent.get_model("ddpg",model_kwargs = DDPG_PARAMS) 
 
@@ -112,6 +157,13 @@ def train_ddpg(agent):
     return trained_ddpg
 
 def train_td3(agent):
+    """
+    Train a Twin Delayed DDPG (TD3) model for stock trading.
+    Args:
+        agent: DRLAgent instance configured with the trading environment
+    Returns:
+        trained_td3: Trained TD3 model
+    """
     TD3_PARAMS = {"batch_size": 100, 
               "buffer_size": 1000000, 
               "learning_rate": 0.001}
@@ -125,6 +177,13 @@ def train_td3(agent):
     return trained_td3
 
 def train_sac(agent):
+    """
+    Train a Soft Actor-Critic (SAC) model for stock trading.
+    Args:
+        agent: DRLAgent instance configured with the trading environment
+    Returns:
+        trained_sac: Trained SAC model
+    """
     SAC_PARAMS = {
     "batch_size": 128,
     "buffer_size": 100000,
@@ -141,6 +200,15 @@ def train_sac(agent):
     return trained_sac
 
 def evaluate_model(model, X_test, y_test):
+    """
+    Evaluate the performance of a trained model using various metrics.
+    Args:
+        model: Trained model to evaluate
+        X_test: Test features
+        y_test: True labels
+    Returns:
+        float: Mean Squared Error of the model predictions
+    """
     from sklearn.metrics import mean_squared_error
     #from sklearn.metrics import mean_squared_log_error
 
@@ -170,6 +238,19 @@ def append_return_table(df_predict, unique_datetime, y_trade_return, trade_tic, 
 def run_models(df,date_column, trade_date, env_kwargs, 
               testing_window=4,
               max_rolling_window=44):
+    """
+    Train and evaluate multiple reinforcement learning models for stock trading.
+    Args:
+        df: Input dataframe containing stock data
+        date_column: Name of the date column
+        trade_date: Current trading date
+        env_kwargs: Dictionary of environment parameters
+        testing_window: Length of data for testing (default: 4)
+        max_rolling_window: Size of rolling window (default: 44)
+    Returns:
+        tuple: (a2c_model, ppo_model, ddpg_model, td3_model, sac_model, best_model)
+               containing all trained models and the best performing model
+    """
     ## initialize all the result tables
     ## need date as index and unique tic name as columns
     evaluation_record = {}
@@ -335,7 +416,13 @@ def pick_stocks_based_on_quantiles_old(df_predict_best):
     return (quantile_0_25, quantile_25_50, quantile_50_75, quantile_75_100)        
 
 def pick_stocks_based_on_quantiles(df_predict_best):
-
+    """
+    Select stocks based on predicted return quantiles.
+    Args:
+        df_predict_best: DataFrame containing the best model's predictions
+    Returns:
+        tuple: (quantile_0_30, quantile_70_100) containing stocks in bottom 30% and top 30% of predictions
+    """
     quantile_0_30 = {}
 
     quantile_70_100 = {}
@@ -387,6 +474,16 @@ def calculate_portfolio_quarterly_return(quarterly_return,trade_date_plus1,long_
     return df_portfolio_return    
 
 def long_only_strategy_daily(df_predict_return, daily_return, trade_month_plus1, top_quantile_threshold=0.75):
+    """
+    Implement a long-only trading strategy on a daily basis.
+    Args:
+        df_predict_return: DataFrame containing predicted returns
+        daily_return: DataFrame containing daily returns
+        trade_month_plus1: List of trading dates
+        top_quantile_threshold: Threshold for selecting top performing stocks (default: 0.75)
+    Returns:
+        DataFrame: Daily portfolio returns
+    """
     long_dict = {}
     for i in range(df_predict_return.shape[0]):
         top_q = df_predict_return.iloc[i].quantile(top_quantile_threshold)
@@ -467,6 +564,13 @@ def long_only_strategy_monthly(df_predict_return, tic_monthly_return, trade_mont
 
 
 def plot_predict_return_distribution(df_predict_best,sector_name,out_path):
+    """
+    Plot the distribution of predicted returns for each trading date.
+    Args:
+        df_predict_best: DataFrame containing the best model's predictions
+        sector_name: Name of the sector being analyzed
+        out_path: Path to save the generated plots
+    """
     import matplotlib.pyplot as plt
 
     for i in range(df_predict_best.shape[0]):
