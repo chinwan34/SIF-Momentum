@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 from sklearn.svm import SVR
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, mean_squared_error, mean_absolute_error,explained_variance_score,r2_score
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.linear_model import Ridge
 
@@ -25,12 +25,32 @@ import errno
 
 from multiprocessing import cpu_count
 
+import matplotlib.pyplot as plt
+
 n_cpus = cpu_count() - 1
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 
 
 def prepare_rolling_train(df,features_column,label_column,date_column,unique_datetime,testing_windows,first_trade_date_index, max_rolling_window_index,current_index):
+    """
+    Prepare rolling training dataset based on time-windowed slicing strategy.
+
+    Args:
+        df: Input DataFrame containing the time series data.
+        features_column: List of columns to be used as features (X).
+        label_column: Column to be used as label (y).
+        date_column: Name of the column containing datetime information.
+        unique_datetime: List or index of unique sorted datetimes for reference.
+        testing_windows: Number of time steps to be reserved for testing.
+        first_trade_date_index: Index of the first tradable date in unique_datetime.
+        max_rolling_window_index: Maximum offset for rolling window start.
+        current_index: Current index in unique_datetime for which data is being prepared.
+
+    Returns:
+        X_train: Feature data for training.
+        y_train: Label data for training.
+    """
     if current_index <=max_rolling_window_index:
         train=df[(df[date_column] >= unique_datetime[0]) \
                 & (df[date_column] < unique_datetime[current_index-testing_windows])]
@@ -43,14 +63,47 @@ def prepare_rolling_train(df,features_column,label_column,date_column,unique_dat
     print(X_train.shape, y_train.shape, testing_windows, first_trade_date_index, unique_datetime, current_index)
     return X_train,y_train
 
-def prepare_rolling_test(df,features_column,label_column,date_column,unique_datetime,testing_windows,fist_trade_date_index, current_index):
+def prepare_rolling_test(df,features_column,label_column,date_column,unique_datetime,testing_windows,current_index):
+    """
+    Prepare rolling test dataset using a fixed testing window from time series data.
+
+    Args:
+        df: Input DataFrame containing the time series data.
+        features_column: List of columns to be used as features (X).
+        label_column: Column to be used as label (y).
+        date_column: Name of the column containing datetime information.
+        unique_datetime: List or index of unique sorted datetimes for reference.
+        testing_windows: Number of time steps to be used for testing.
+        current_index: Current index in unique_datetime for which test data is being prepared.
+
+    Returns:
+        X_test: Feature data for testing.
+        y_test: Label data for testing.
+    """
     test=df[(df[date_column] >= unique_datetime[current_index-testing_windows]) \
             & (df[date_column] < unique_datetime[current_index])]
     X_test=test[features_column]
     y_test=test[label_column]
     return X_test,y_test
 
-def prepare_trade_data(df,features_column,label_column,date_column,tic_column,unique_datetime,testing_windows,fist_trade_date_index, current_index):
+def prepare_trade_data(df,features_column,label_column,date_column,tic_column,unique_datetime, current_index):
+    """
+    Prepare trade data for a specific trading date identified by current index.
+
+    Args:
+        df: Input DataFrame containing the time series data.
+        features_column: List of columns to be used as features (X).
+        label_column: Column to be used as label (y).
+        date_column: Name of the column containing datetime information.
+        tic_column: Column containing ticker or instrument identifier.
+        unique_datetime: List or index of unique sorted datetimes for reference.
+        current_index: Current index in unique_datetime for which trade data is being extracted.
+
+    Returns:
+        X_trade: Feature data for the specific trading day.
+        y_trade: Label data for the specific trading day.
+        trade_tic: Array of ticker identifiers for the trading day.
+    """
     trade  = df[df[date_column] == unique_datetime[current_index]]
     X_trade = trade[features_column]
     y_trade = trade[label_column]
@@ -59,20 +112,45 @@ def prepare_trade_data(df,features_column,label_column,date_column,tic_column,un
 
 
 def train_linear_regression(X_train,y_train):
+    """
+    Train a linear regression model on the given training dataset.
 
+    Args:
+        X_train: Feature matrix used for training.
+        y_train: Target variable used for training.
+
+    Returns:
+        model: Trained LinearRegression model from scikit-learn.
+    """
     lr_regressor = LinearRegression()
     model = lr_regressor.fit(X_train, y_train)
     
     return model
 
-def train_recursive_feature_elimination(X_train,y_train):
+def train_recursive_feature_elimination():
+    """
+    Initialize a Recursive Feature Elimination (RFE) model using linear regression as 
+    the base estimator.
 
+    Returns:
+        model: An untrained RFE model instance with LinearRegression as the estimator.
+    """
     lr_regressor = LinearRegression(random_state = 42)
     model = RFE(lr_regressor)
     
     return model
 
 def train_lasso(X_train, y_train):
+    """
+    Train a Lasso regression model with hyperparameter tuning using GridSearchCV.
+
+    Args:
+        X_train: Feature matrix used for training.
+        y_train: Target variable used for training.
+
+    Returns:
+        model: Best Lasso regression model selected through grid search.
+    """
     # lasso_regressor = Lasso()
     # model = lasso_regressor.fit(X_train, y_train)
 
@@ -91,6 +169,17 @@ def train_lasso(X_train, y_train):
     return model
 
 def train_ridge(X_train, y_train):
+    """
+    Train a Ridge regression model with hyperparameter tuning using GridSearchCV.
+
+    Args:
+        X_train: Feature matrix used for training.
+        y_train: Target variable used for training.
+
+    Returns:
+        model: Best Ridge regression model selected through grid search.
+    """
+
     # lasso_regressor = Lasso()
     # model = lasso_regressor.fit(X_train, y_train)
 
@@ -109,7 +198,16 @@ def train_ridge(X_train, y_train):
     return model
 
 def train_random_forest(X_train, y_train):
-    
+    """
+    Train a Random Forest regression model with hyperparameter tuning using GridSearchCV.
+
+    Args:
+        X_train: Feature matrix used for training.
+        y_train: Target variable used for training.
+
+    Returns:
+        model: Best RandomForestRegressor model selected through grid search.
+    """
     random_grid = {
                    #'max_depth': [10, 20, 40, 80, 100, None],
                    'max_features': ['sqrt'],
@@ -156,6 +254,16 @@ def train_random_forest(X_train, y_train):
 
 
 def train_svm(X_train, y_train):
+    """
+    Train a Support Vector Regression (SVR) model with hyperparameter tuning using GridSearchCV.
+
+    Args:
+        X_train: Feature matrix used for training.
+        y_train: Target variable used for training.
+
+    Returns:
+        model: Best SVR model selected through grid search.
+    """
     svr = SVR(kernel = 'rbf')
 
     param_grid_svm = {'C':[0.001, 0.1, 1],'gamma': [1e-7,0.1]}
@@ -179,7 +287,16 @@ def train_svm(X_train, y_train):
 
 
 def train_lightgbm(X_train, y_train):
+    """
+    Train a LightGBM regression model with hyperparameter tuning using GridSearchCV.
 
+    Args:
+        X_train: Feature matrix used for training.
+        y_train: Target variable used for training.
+
+    Returns:
+        model: Best LightGBM (LGBMRegressor) model selected through grid search.
+    """
     
     # model = gbm.fit(X_train, y_train)
 
@@ -208,7 +325,18 @@ def train_lightgbm(X_train, y_train):
 
 
 
+
 def train_xgb(X_train, y_train):
+    """
+    Train an XGBoost regression model with hyperparameter tuning using GridSearchCV.
+
+    Args:
+        X_train: Feature matrix used for training.
+        y_train: Target variable used for training.
+
+    Returns:
+        model: Best XGBRegressor model selected through grid search.
+    """
     xgb = XGBRegressor(random_state = 42, n_jobs=10)
 
     param_grid_gbm = {'learning_rate': [0.1,  0.01, 0.001], 'n_estimators': [100, 250, 500,1000]}
@@ -234,6 +362,16 @@ def train_xgb(X_train, y_train):
     '''
     return model
 def train_ada(X_train, y_train):
+    """
+    Train an AdaBoost regression model with hyperparameter tuning using GridSearchCV.
+
+    Args:
+        X_train: Feature matrix used for training.
+        y_train: Target variable used for training.
+
+    Returns:
+        model: Best AdaBoostRegressor model selected through grid search.
+    """
     ada = AdaBoostRegressor()
 
     # model = ada.fit(X_train, y_train)
@@ -259,12 +397,17 @@ def train_ada(X_train, y_train):
 
 
 def evaluate_model(model, X_test, y_test):
-    from sklearn.metrics import mean_squared_error
-    #from sklearn.metrics import mean_squared_log_error
+    """
+    Evaluate a regression model on test data using multiple performance metrics.
 
-    from sklearn.metrics import mean_absolute_error
-    from sklearn.metrics import explained_variance_score
-    from sklearn.metrics import r2_score
+    Args:
+        model: Trained regression model to be evaluated.
+        X_test: Feature matrix for testing.
+        y_test: True target values for the test set.
+
+    Returns:
+        mse: Mean Squared Error (MSE) between predictions and true values.
+    """
     y_predict = model.predict(X_test)
 
     mae = mean_absolute_error(y_test, y_predict)
@@ -280,6 +423,19 @@ def evaluate_model(model, X_test, y_test):
 
 
 def append_return_table(df_predict, unique_datetime, y_trade_return, trade_tic, current_index):
+    """
+    Append trade returns to the prediction DataFrame for a specific datetime index.
+
+    Args:
+        df_predict: DataFrame that stores predicted returns over time.
+        unique_datetime: List or index of unique datetime values.
+        y_trade_return: List or array of predicted returns for the current trading day.
+        trade_tic: List of ticker symbols corresponding to the returns.
+        current_index: Current index in unique_datetime for which returns are being recorded.
+
+    Returns:
+        None (modifies df_predict in place to add returns for the current date).
+    """
     tmp_table = pd.DataFrame(columns=trade_tic)
     tmp_table = tmp_table.append(pd.Series(y_trade_return, index=trade_tic), ignore_index=True)
     df_predict.loc[unique_datetime[current_index]][tmp_table.columns] = tmp_table.loc[0]
@@ -290,6 +446,33 @@ def run_4model(df,features_column, label_column,date_column,tic_column,
               first_trade_date_index=20,
               testing_windows=4,
               max_rolling_window_index=44):
+    """
+    Run and evaluate multiple regression models using a rolling window backtesting framework.
+
+    Args:
+        df: Input DataFrame containing time series data with features and target.
+        features_column: List of columns to be used as features (X).
+        label_column: Column name to be used as the label (y).
+        date_column: Name of the column containing datetime information.
+        tic_column: Name of the column containing ticker/instrument symbols.
+        unique_ticker: List of unique ticker symbols.
+        unique_datetime: List or index of unique sorted datetimes.
+        trade_date: Index to be used for model evaluation results.
+        first_trade_date_index: Index of the first tradable date.
+        testing_windows: Number of time steps used for the test set.
+        max_rolling_window_index: Maximum offset for rolling training window.
+
+    Returns:
+        A tuple containing:
+            - df_predict_rf: Predictions from the Random Forest model.
+            - df_predict_xgb: Predictions from the XGBoost model.
+            - df_predict_gbm: Predictions from the LightGBM model.
+            - df_predict_best: Predictions from the model that performed best per date.
+            - df_best_model_name: DataFrame mapping each date to its best-performing model.
+            - evaluation_record: Detailed performance of all models per evaluation date.
+            - df_evaluation: Structured DataFrame with evaluation results over time.
+    """
+
     ## initialize all the result tables
     ## need date as index and unique tic name as columns
     df_predict_rf = pd.DataFrame(columns=unique_ticker, index=trade_date)
@@ -408,6 +591,18 @@ def run_4model(df,features_column, label_column,date_column,tic_column,
             df_evaluation)
 
 def get_model_evaluation_table(evaluation_record,trade_date):
+    """
+    Construct a DataFrame of model evaluation metrics for each trade date.
+
+    Args:
+        evaluation_record: Dictionary containing evaluation tables per date, 
+                        where each entry includes a 'model_eval' field.
+        trade_date: List of dates to include in the evaluation summary.
+
+    Returns:
+        df_evaluation: DataFrame where each row corresponds to a trade date,
+                    and columns represent evaluation scores for ['rf', 'xgb', 'gbm'] models.
+    """
     evaluation_list = []
     for d in trade_date:
         try:
@@ -420,6 +615,24 @@ def get_model_evaluation_table(evaluation_record,trade_date):
     return df_evaluation
 
 def save_model_result(sector_result,sector_name):
+    """
+    Save the model prediction results and evaluation scores to CSV files for a given sector.
+
+    Args:
+        sector_result: A tuple containing model outputs in the following order:
+            [0] df_predict_rf: Random Forest predictions
+            [1] df_predict_gbm: LightGBM predictions
+            [2] df_predict_xgb: XGBoost predictions
+            [3] df_predict_best: Best model predictions by date
+            [4] df_best_model_name: DataFrame mapping dates to best-performing model names
+            [5] df_evaluation_score: Evaluation scores across trade dates
+            [6] df_model_score: Final summary of model performance
+        sector_name: String name of the sector (used to name output folders and files)
+
+    Returns:
+        None (writes CSV files to disk under `results/<sector_name>/`)
+
+    """
     df_predict_rf = sector_result[0].astype(np.float64)
     df_predict_gbm = sector_result[1].astype(np.float64)
     df_predict_xgb = sector_result[2].astype(np.float64)
@@ -448,6 +661,17 @@ def save_model_result(sector_result,sector_name):
 
 
 def calculate_sector_daily_return(daily_price, unique_ticker,trade_date):
+    """
+    Calculate daily percentage returns for a sector based on adjusted prices.
+
+    Args:
+        daily_price: DataFrame containing price data with 'datadate', 'tic', and 'adj_price' columns.
+        unique_ticker: List of ticker symbols to include in the return calculation.
+        trade_date: List of trade dates; used to filter returns from a specific starting point.
+
+    Returns:
+        daily_return: DataFrame of daily percentage returns (as fractions), indexed by date and filtered to start from trade_date[0].
+    """
     daily_price_pivot = pd.pivot_table(daily_price, values='adj_price', index=['datadate'],
                        columns=['tic'], aggfunc=np.mean)
     daily_price_pivot=daily_price_pivot[unique_ticker]
@@ -457,6 +681,18 @@ def calculate_sector_daily_return(daily_price, unique_ticker,trade_date):
     return daily_return
 
 def calculate_sector_quarterly_return(daily_price, unique_ticker,trade_date_plus1):
+    """
+    Calculate quarterly percentage returns for a sector based on adjusted prices.
+
+    Args:
+        daily_price: DataFrame containing price data with 'datadate', 'tic', and 'adj_price' columns.
+        unique_ticker: List of ticker symbols to include in the return calculation.
+        trade_date_plus1: List of trade dates used to filter the return data starting from a specific point.
+
+    Returns:
+        quarterly_return: DataFrame of quarterly percentage returns (as fractions), indexed by date and filtered from trade_date_plus1[0].
+    """
+
     daily_price_pivot = pd.pivot_table(daily_price, values='adj_price', index=['datadate'],
                        columns=['tic'], aggfunc=np.mean)
     daily_price_pivot=daily_price_pivot[unique_ticker]
@@ -468,6 +704,19 @@ def calculate_sector_quarterly_return(daily_price, unique_ticker,trade_date_plus
     return quarterly_return
 
 def pick_stocks_based_on_quantiles_old(df_predict_best):
+    """
+    Categorize stocks into quantile-based portfolios for each date based on predicted returns.
+
+    Args:
+        df_predict_best: DataFrame where each row corresponds to a date and columns represent predicted returns for various tickers.
+
+    Returns:
+        A tuple of dictionaries, each mapping date indices to DataFrames of selected stocks:
+            - quantile_0_25: Stocks in the bottom 25% of predicted returns.
+            - quantile_25_50: Stocks in the 25–50% quantile.
+            - quantile_50_75: Stocks in the 50–75% quantile.
+            - quantile_75_100: Stocks in the top 25% of predicted returns.
+    """
 
     quantile_0_25 = {}
     quantile_25_50 = {}
@@ -490,6 +739,17 @@ def pick_stocks_based_on_quantiles_old(df_predict_best):
     return (quantile_0_25, quantile_25_50, quantile_50_75, quantile_75_100)        
 
 def pick_stocks_based_on_quantiles(df_predict_best):
+    """
+    Select stocks based on 30th and 70th percentile thresholds of predicted returns for each date.
+
+    Args:
+        df_predict_best: DataFrame where each row corresponds to a date and columns represent predicted returns for different tickers.
+
+    Returns:
+        A tuple of two dictionaries:
+            - quantile_0_30: Stocks with predicted returns in the bottom 30% for each date.
+            - quantile_70_100: Stocks with predicted returns in the top 30% for each date.
+    """
 
     quantile_0_30 = {}
 
@@ -506,7 +766,19 @@ def pick_stocks_based_on_quantiles(df_predict_best):
         quantile_70_100[df_predict_best.index[i]] = df_predict_best.iloc[i][(df_predict_best.iloc[i] >= q_70)]
     return (quantile_0_30, quantile_70_100)   
 
-def calculate_portfolio_return(daily_return,trade_date_plus1,long_dict,frequency_date):
+def calculate_portfolio_return(daily_return,trade_date_plus1,long_dict):
+    """
+    Calculate the average daily portfolio return based on selected long positions over multiple trading periods.
+
+    Args:
+        daily_return: DataFrame containing daily percentage returns for all tickers, indexed by date.
+        trade_date_plus1: List of trade dates used to define rebalancing periods.
+        long_dict: Dictionary where each key is a trade date and each value is a list or DataFrame of tickers selected for long positions on that date.
+
+    Returns:
+        df_portfolio_return: DataFrame containing the mean daily portfolio return for each rebalancing period.
+    """
+
     df_portfolio_return = pd.DataFrame(columns=['portfolio_return'])
 
     for i in range(len(trade_date_plus1) - 1):
@@ -526,6 +798,18 @@ def calculate_portfolio_return(daily_return,trade_date_plus1,long_dict,frequency
     return df_portfolio_return    
 
 def calculate_portfolio_quarterly_return(quarterly_return,trade_date_plus1,long_dict):
+    """
+    Calculate the quarterly portfolio return based on selected long positions for each quarter.
+
+    Args:
+        quarterly_return: DataFrame containing quarterly returns for all tickers, indexed by date.
+        trade_date_plus1: List of trade dates representing the quarterly rebalancing points.
+        long_dict: Dictionary where each key is a trade date and each value is a list or DataFrame of tickers selected for long positions.
+
+    Returns:
+        df_portfolio_return: DataFrame containing the average portfolio return for each quarter.
+    """
+
     df_portfolio_return = pd.DataFrame(columns=['portfolio_return'])
 
     for i in range(len(trade_date_plus1) - 1):
@@ -542,6 +826,19 @@ def calculate_portfolio_quarterly_return(quarterly_return,trade_date_plus1,long_
     return df_portfolio_return    
 
 def long_only_strategy_daily(df_predict_return, daily_return, trade_month_plus1, top_quantile_threshold=0.75):
+    """
+    Implement a long-only strategy by selecting top-performing stocks daily and calculating equal-weighted portfolio returns.
+
+    Args:
+        df_predict_return: DataFrame of predicted returns for each ticker, indexed by date.
+        daily_return: DataFrame of actual daily returns for each ticker, indexed by date.
+        trade_month_plus1: List of dates marking the start of each holding period (e.g., monthly rebalancing).
+        top_quantile_threshold: Quantile threshold to define top-performing stocks (default is 0.75).
+
+    Returns:
+        df_portfolio_return_daily: DataFrame of daily portfolio returns based on selected long positions.
+    """
+
     long_dict = {}
     for i in range(df_predict_return.shape[0]):
         top_q = df_predict_return.iloc[i].quantile(top_quantile_threshold)
@@ -581,6 +878,21 @@ def long_only_strategy_daily(df_predict_return, daily_return, trade_month_plus1,
 
 
 def long_only_strategy_monthly(df_predict_return, tic_monthly_return, trade_month, top_quantile_threshold=0.7):
+    """
+    Implement a long-only monthly rebalanced portfolio strategy using top quantile stock selection.
+
+    Args:
+        df_predict_return: DataFrame of predicted returns, with rows as dates and columns as tickers.
+        tic_monthly_return: DataFrame of actual monthly returns, with tickers as columns and dates as index.
+        trade_month: List of trade dates marking the start of each monthly rebalancing period.
+        top_quantile_threshold: Float indicating the threshold (default 0.7) for selecting top-performing stocks.
+
+    Returns:
+        df_portfolio_return: DataFrame with two columns:
+            - 'trade_month': List of trade months.
+            - 'monthly_return': Computed portfolio return for each trade month.
+    """
+
     long_dict = {}
     short_dict = {}
     for i in range(df_predict_return.shape[0]):
@@ -618,7 +930,19 @@ def long_only_strategy_monthly(df_predict_return, tic_monthly_return, trade_mont
     return df_portfolio_return
 
 def plot_predict_return_distribution(df_predict_best,sector_name,out_path):
-    import matplotlib.pyplot as plt
+    """
+    Plot and save histograms of predicted return distributions for each date.
+
+    Args:
+        df_predict_best: DataFrame of predicted returns, where each row corresponds to a date and columns represent tickers.
+        sector_name: String representing the name of the sector (used in plot titles).
+        out_path: Directory path where the plots will be saved.
+
+    Returns:
+        None (saves histogram plots as PNG files to the specified output path).
+    """
+
+
 
     for i in range(df_predict_best.shape[0]):
         fig=plt.figure(figsize=(8,5))
@@ -630,6 +954,22 @@ def plot_predict_return_distribution(df_predict_best,sector_name,out_path):
     plt.savefig(out_path+str(df_predict_best.index[i])+".png")
 
 def stock_selection():
+    """
+    Select top-performing stocks from multiple sector prediction files based on the 75th percentile of predicted returns.
+
+    Args:
+        None (operates over predefined sector range and file structure).
+
+    Returns:
+        None (writes a CSV file 'stock_selected.csv' containing selected stocks and their metadata).
+
+    Outputs:
+        - Columns in output CSV:
+            - 'gvkey': Stock identifier.
+            - 'predicted_return': Predicted return value for the selected date.
+            - 'trade_date': Date associated with the prediction.
+    """
+
     sectors = range(10, 65, 5)
     df_dict = {'gvkey':[], 'predicted_return':[], 'trade_date':[]}
     for sector in sectors:
